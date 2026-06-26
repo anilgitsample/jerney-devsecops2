@@ -216,24 +216,3 @@ jobs:
     steps:
       - name: Success
         run: echo "Jerney DevSecOps Pipeline Passed"
-
-
-  deploy:
-    name: Deploy to Kubernetes
-    runs-on: self-hosted
-
-    needs: success
-
-    steps:
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Verify Cluster
-        run: kubectl get nodes
-
-      - name: Deploy Application
-        run: kubectl apply -f k8/jerney.yml
-
-      - name: Verify Pods
-        run: kubectl get pods
