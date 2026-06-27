@@ -1,0 +1,1124 @@
+Perfect. This is the **final technical chapter** of the Jerney DevSecOps Project. It is also one of the most valuable chapters for interviews because almost every company uses monitoring and observability.
+
+---
+
+# JERNEY DEVSECOPS PROJECT DOCUMENTATION
+
+# CHAPTER 9 – Production Monitoring with Prometheus, Grafana & Loki
+
+**Difficulty:** ⭐⭐⭐⭐⭐
+
+> In this chapter, we will learn how we monitored our Kubernetes cluster and application using Prometheus, Grafana, Loki, and Promtail. This chapter also covers the issues we faced, how we solved them, and how real companies use these tools in production.
+
+---
+
+# Table of Contents
+
+1. Why Monitoring?
+2. What is Observability?
+3. Monitoring Stack
+4. Our Architecture
+5. Prometheus
+6. Grafana
+7. Loki
+8. Promtail
+9. Metrics vs Logs
+10. Installation using Helm
+11. Grafana Dashboards
+12. Viewing Kubernetes Metrics
+13. Viewing Application Logs
+14. Production Incident Workflow
+15. Issues We Faced
+16. Real Company Monitoring
+17. Interview Questions
+18. Summary
+
+---
+
+# 1. Why Monitoring?
+
+Imagine your application is running.
+
+Suddenly users complain
+
+> "Website is very slow."
+
+How do you know why?
+
+Without monitoring
+
+```text
+Users
+
+↓
+
+Complaint
+
+↓
+
+Guess
+
+↓
+
+Restart Server
+
+↓
+
+Hope it Works
+```
+
+This is not acceptable.
+
+---
+
+With Monitoring
+
+```text
+Users
+
+↓
+
+Grafana Dashboard
+
+↓
+
+CPU
+
+Memory
+
+Latency
+
+Errors
+
+↓
+
+Root Cause
+```
+
+Now you know exactly what happened.
+
+---
+
+# 2. What is Observability?
+
+Observability means
+
+Understanding
+
+**What happened?**
+
+**Why it happened?**
+
+using
+
+* Metrics
+* Logs
+* Traces
+
+---
+
+Three Pillars
+
+```text
+Metrics
+
+↓
+
+Logs
+
+↓
+
+Traces
+```
+
+---
+
+Metrics
+
+```text
+CPU
+
+Memory
+
+Network
+
+Latency
+
+Requests
+```
+
+---
+
+Logs
+
+```text
+Application Logs
+
+System Logs
+
+Kubernetes Logs
+```
+
+---
+
+Traces
+
+```text
+User Request
+
+↓
+
+Frontend
+
+↓
+
+Backend
+
+↓
+
+Database
+```
+
+---
+
+# 3. Monitoring Stack
+
+Our stack
+
+```text
+Prometheus
+
+↓
+
+Grafana
+
+↓
+
+Loki
+
+↓
+
+Promtail
+```
+
+---
+
+Responsibilities
+
+| Tool       | Purpose         |
+| ---------- | --------------- |
+| Prometheus | Collect Metrics |
+| Grafana    | Visualization   |
+| Loki       | Store Logs      |
+| Promtail   | Collect Logs    |
+
+---
+
+# 4. Our Architecture
+
+```text
+                 Kubernetes Cluster
+
+        ┌──────────────────────────────┐
+
+        Frontend Pods
+
+        Backend Pods
+
+        PostgreSQL Pod
+
+        └─────────────┬────────────────┘
+
+                      │
+
+          ┌───────────┴───────────┐
+
+          │                       │
+
+          ▼                       ▼
+
+     Prometheus             Promtail
+
+          │                       │
+
+          ▼                       ▼
+
+      Metrics                 Loki
+
+          │                       │
+
+          └───────────┬───────────┘
+
+                      ▼
+
+                  Grafana
+
+                      ▼
+
+                Dashboards
+```
+
+---
+
+# 5. Prometheus
+
+Prometheus collects
+
+```text
+CPU
+
+Memory
+
+Pods
+
+Nodes
+
+Containers
+
+Network
+```
+
+It continuously scrapes metrics.
+
+Example
+
+Every
+
+15 seconds
+
+Prometheus asks
+
+```text
+Backend
+
+CPU?
+
+Memory?
+
+Errors?
+```
+
+Backend responds.
+
+Prometheus stores it.
+
+---
+
+# Why Prometheus?
+
+Without Prometheus
+
+No historical metrics.
+
+With Prometheus
+
+You can answer
+
+> What was CPU usage yesterday at 3 PM?
+
+---
+
+# 6. Grafana
+
+Grafana does NOT collect data.
+
+Grafana only visualizes.
+
+```text
+Prometheus
+
+↓
+
+Grafana Dashboard
+```
+
+---
+
+Example Dashboard
+
+```text
+CPU Usage
+
+Memory Usage
+
+Pod Count
+
+Request Rate
+
+Latency
+```
+
+---
+
+# 7. Loki
+
+Loki stores
+
+Logs.
+
+Example
+
+```text
+INFO
+
+Backend Started
+
+ERROR
+
+Database Connection Failed
+
+WARN
+
+Memory Usage High
+```
+
+Everything is indexed.
+
+---
+
+# Why Loki?
+
+Suppose
+
+Backend crashes.
+
+Instead of
+
+```bash
+kubectl logs
+```
+
+every time,
+
+Grafana can search all logs.
+
+---
+
+# 8. Promtail
+
+Promtail is
+
+Log Collector.
+
+Flow
+
+```text
+Pods
+
+↓
+
+Promtail
+
+↓
+
+Loki
+
+↓
+
+Grafana
+```
+
+Promtail watches
+
+```text
+/var/log/pods
+```
+
+Whenever
+
+new log appears,
+
+it sends it to Loki.
+
+---
+
+# 9. Metrics vs Logs
+
+Metrics
+
+```text
+CPU = 70%
+
+Memory = 300 MB
+
+Latency = 250 ms
+```
+
+Logs
+
+```text
+ERROR
+
+Database Timeout
+
+Connection Refused
+
+Null Pointer Exception
+```
+
+Metrics tell
+
+"What"
+
+Logs tell
+
+"Why"
+
+---
+
+# 10. Installation
+
+We installed everything using Helm.
+
+---
+
+## Step 1
+
+Prometheus Stack
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+helm repo update
+
+helm install monitoring prometheus-community/kube-prometheus-stack
+```
+
+Installed
+
+```text
+Prometheus
+
+Grafana
+
+Alertmanager
+
+Node Exporter
+
+Kube State Metrics
+```
+
+---
+
+## Step 2
+
+Loki
+
+We initially tried
+
+```bash
+helm install loki grafana/loki
+```
+
+Problem
+
+New Helm chart required
+
+```text
+Schema Config
+
+Storage Config
+
+Bucket Config
+```
+
+Installation failed.
+
+---
+
+Solution
+
+```bash
+helm install loki grafana/loki \
+--set loki.useTestSchema=true \
+--set deploymentMode=SingleBinary \
+--set singleBinary.replicas=1 \
+--set backend.replicas=0 \
+--set read.replicas=0 \
+--set write.replicas=0 \
+--set chunksCache.enabled=false \
+--set resultsCache.enabled=false \
+--set loki.commonConfig.replication_factor=1 \
+--set loki.storage.type=filesystem \
+--set minio.enabled=false
+```
+
+---
+
+Pods became
+
+```text
+loki
+
+loki-gateway
+
+loki-canary
+```
+
+---
+
+## Step 3
+
+Promtail
+
+```bash
+helm install promtail grafana/promtail \
+--set config.clients[0].url=http://loki-gateway/loki/api/v1/push \
+--set config.clients[0].tenant_id=fake
+```
+
+Promtail started collecting logs.
+
+---
+
+# 11. Grafana Dashboards
+
+We accessed
+
+```text
+http://localhost:3000
+```
+
+Login
+
+```text
+admin
+
+password
+```
+
+After login
+
+We saw
+
+```text
+Node Metrics
+
+Cluster Metrics
+
+Pod Metrics
+
+Memory
+
+CPU
+
+Network
+```
+
+---
+
+# 12. Monitoring Kubernetes
+
+Example
+
+```text
+Namespace
+
+↓
+
+jerney-devops2
+
+↓
+
+Backend Pod
+
+↓
+
+CPU
+
+Memory
+
+Restarts
+
+Status
+```
+
+Grafana displayed
+
+everything visually.
+
+---
+
+# 13. Viewing Application Logs
+
+Application Flow
+
+```text
+Backend
+
+↓
+
+Console.log()
+
+↓
+
+Container Logs
+
+↓
+
+Promtail
+
+↓
+
+Loki
+
+↓
+
+Grafana Explore
+```
+
+Now
+
+Instead of
+
+```bash
+kubectl logs
+```
+
+we can search
+
+```text
+namespace
+
+pod
+
+container
+
+error
+```
+
+inside Grafana.
+
+---
+
+# 14. Production Incident
+
+Imagine
+
+Customer says
+
+> Login not working.
+
+Engineer opens
+
+Grafana.
+
+---
+
+Step 1
+
+CPU
+
+Normal
+
+---
+
+Step 2
+
+Memory
+
+Normal
+
+---
+
+Step 3
+
+Pod Restarts
+
+0
+
+---
+
+Step 4
+
+Open Logs
+
+Search
+
+```text
+login
+
+ERROR
+```
+
+Output
+
+```text
+Database Connection Timeout
+```
+
+Root Cause Found.
+
+---
+
+Another Example
+
+High CPU
+
+↓
+
+Dashboard
+
+↓
+
+Backend Pod
+
+↓
+
+Logs
+
+↓
+
+Infinite Loop
+
+↓
+
+Developer Fixes
+
+↓
+
+Deploy
+
+↓
+
+Problem Solved
+
+---
+
+# 15. Problems We Faced
+
+## Problem 1
+
+Grafana CrashLoopBackOff
+
+Reason
+
+Old configuration remained after reinstall.
+
+Solution
+
+Deleted
+
+Helm release
+
+Secrets
+
+ConfigMaps
+
+Reinstalled cleanly.
+
+---
+
+## Problem 2
+
+Loki Installation Failed
+
+Reason
+
+New chart required
+
+Schema Config.
+
+Solution
+
+Used
+
+```text
+loki.useTestSchema=true
+```
+
+for local environment.
+
+---
+
+## Problem 3
+
+Loki Datasource Failed
+
+Reason
+
+Wrong URL
+
+```text
+localhost
+```
+
+Correct
+
+```text
+http://loki-gateway.default.svc.cluster.local
+```
+
+inside Kubernetes
+
+or
+
+```text
+http://loki-gateway
+```
+
+for cluster communication.
+
+---
+
+## Problem 4
+
+Node Exporter CrashLoopBackOff
+
+Reason
+
+Docker Desktop Kubernetes limitation.
+
+Node Exporter expects host-level Linux filesystem access.
+
+This issue is common in local Docker Desktop clusters and does not affect application monitoring.
+
+---
+
+## Problem 5
+
+Promtail Not Sending Logs
+
+Reason
+
+Wrong Loki endpoint.
+
+Solution
+
+Updated
+
+```text
+config.clients[0].url
+```
+
+to Loki Gateway.
+
+---
+
+# 16. Real Company Monitoring
+
+Production
+
+```text
+Application
+
+↓
+
+Prometheus
+
+↓
+
+Grafana
+
+↓
+
+Alertmanager
+
+↓
+
+Slack
+
+↓
+
+PagerDuty
+
+↓
+
+Engineer
+```
+
+Logs
+
+```text
+Application
+
+↓
+
+Promtail
+
+↓
+
+Loki
+
+↓
+
+Grafana Explore
+```
+
+Everything centralized.
+
+---
+
+# 17. Interview Questions
+
+### Q1
+
+What is Prometheus?
+
+A monitoring system that collects time-series metrics from applications and Kubernetes.
+
+---
+
+### Q2
+
+What is Grafana?
+
+A visualization platform used to create dashboards from monitoring data.
+
+---
+
+### Q3
+
+What is Loki?
+
+A log aggregation system designed to store and query logs efficiently.
+
+---
+
+### Q4
+
+What is Promtail?
+
+A log collection agent that reads container logs and pushes them to Loki.
+
+---
+
+### Q5
+
+Difference between Metrics and Logs?
+
+Metrics provide numerical measurements like CPU, memory, and request rate.
+
+Logs provide detailed event records explaining what happened inside the application.
+
+---
+
+### Q6
+
+Why use Grafana Explore?
+
+To search logs from Loki and correlate them with metrics from Prometheus during incident investigation.
+
+---
+
+### Q7
+
+What monitoring tools did you use?
+
+In our project we used
+
+* Prometheus
+* Grafana
+* Loki
+* Promtail
+
+to monitor Kubernetes, application health, and logs.
+
+---
+
+# Real Interview Answer
+
+**Interviewer:** Explain your monitoring setup.
+
+**Answer:**
+
+> "We implemented a monitoring stack using Prometheus, Grafana, Loki, and Promtail. Prometheus collected Kubernetes and application metrics, Grafana visualized them through dashboards, Promtail collected container logs from the Kubernetes nodes, and Loki stored those logs. During troubleshooting, we first checked Grafana dashboards for CPU, memory, pod status, and restart counts. If the metrics indicated an issue, we switched to Grafana Explore to search logs from Loki and identify the exact error. This combination allowed us to correlate metrics and logs quickly and reduce incident resolution time."
+
+---
+
+# Final Project Architecture (Everything We Built)
+
+```text
+                     Developer
+
+                         │
+
+                    Git Push
+
+                         │
+
+                    GitHub Repo
+
+                         │
+
+                  GitHub Actions (CI)
+
+        ┌─────────────────────────────────┐
+
+        │ Checkout Source Code            │
+        │ Build Frontend                  │
+        │ Build Backend                   │
+        │ Docker Build                    │
+        │ Trivy Security Scan             │
+        └─────────────────────────────────┘
+
+                         │
+
+                  GitHub Actions (CD)
+
+                         │
+
+                 kubectl apply -f
+
+                         │
+
+                  Kubernetes Cluster
+
+       ┌──────────────────────────────────────┐
+
+       │ Namespace                            │
+       │ Frontend Deployment (2 Pods)         │
+       │ Backend Deployment (2 Pods)          │
+       │ PostgreSQL Deployment (1 Pod)        │
+       │ Services                             │
+       │ Secrets                              │
+       │ PVC                                  │
+       │ Network Policies                     │
+       └──────────────────────────────────────┘
+
+                         │
+
+          ┌──────────────┴──────────────┐
+
+          ▼                             ▼
+
+     Prometheus                    Promtail
+
+          │                             │
+
+          ▼                             ▼
+
+      Metrics                       Loki Logs
+
+          └──────────────┬──────────────┘
+
+                         ▼
+
+                     Grafana
+
+         Dashboards + Explore + Logs + Metrics
+```
+
+---
+
+## 🎉 Congratulations!
+
+With these **9 chapters**, you've documented a complete **production-style DevSecOps project** covering:
+
+* ✅ Docker
+* ✅ Dockerfile
+* ✅ Docker Compose
+* ✅ Git & GitHub
+* ✅ Kubernetes
+* ✅ GitHub Actions (CI)
+* ✅ Continuous Deployment (CD)
+* ✅ Security Scanning (Trivy)
+* ✅ Prometheus
+* ✅ Grafana
+* ✅ Loki
+* ✅ Promtail
+* ✅ Production Monitoring
+* ✅ Real-time Troubleshooting
+* ✅ Interview Questions
+
+This is the kind of end-to-end documentation that can support project explanations in interviews and serve as a reference while working on similar DevSecOps projects.

@@ -1,0 +1,930 @@
+Excellent. 👏 This is the **last core chapter** of the project. After this, your documentation will represent a **complete end-to-end DevSecOps pipeline**.
+
+---
+
+# JERNEY DEVSECOPS PROJECT DOCUMENTATION
+
+# CHAPTER 8 – Continuous Deployment (CD) with GitHub Actions + Kubernetes
+
+**Difficulty:** ⭐⭐⭐⭐⭐
+
+> This chapter explains how our validated Docker images were deployed into Kubernetes automatically, how Kubernetes performed rolling updates, how rollbacks work, and how this compares with enterprise GitOps using Argo CD.
+
+---
+
+# Table of Contents
+
+1. What is CD?
+2. CI vs CD
+3. Our CD Architecture
+4. Deployment Flow
+5. Why We Used GitHub Actions for CD
+6. Connecting GitHub Actions to Kubernetes
+7. kubectl apply Explained
+8. What Happens Inside Kubernetes?
+9. Rolling Updates
+10. Health Checks During Deployment
+11. Rollback
+12. Deployment Commands
+13. Problems We Faced
+14. Production Deployment Flow
+15. GitHub Actions vs Argo CD
+16. Interview Questions
+17. Summary
+
+---
+
+# 1. What is Continuous Deployment (CD)?
+
+Continuous Deployment means
+
+After CI completes successfully,
+
+the application is automatically deployed.
+
+---
+
+Without CD
+
+```text
+Developer
+
+↓
+
+Build Success
+
+↓
+
+Login Server
+
+↓
+
+Copy Files
+
+↓
+
+Restart Application
+
+↓
+
+Wait
+
+↓
+
+Check Logs
+```
+
+Everything is manual.
+
+---
+
+With CD
+
+```text
+Git Push
+
+↓
+
+CI Success
+
+↓
+
+GitHub Actions
+
+↓
+
+kubectl apply
+
+↓
+
+Kubernetes
+
+↓
+
+Application Updated
+```
+
+No manual deployment.
+
+---
+
+# 2. CI vs CD
+
+Many interviewers ask this.
+
+| CI              | CD                  |
+| --------------- | ------------------- |
+| Build Code      | Deploy Code         |
+| Test            | Update Kubernetes   |
+| Docker Build    | Rolling Update      |
+| Security Scan   | Restart Pods        |
+| Create Artifact | Release Application |
+
+Simple way to remember
+
+```text
+CI
+
+↓
+
+Prepare Software
+
+CD
+
+↓
+
+Release Software
+```
+
+---
+
+# 3. Our CD Architecture
+
+```text
+Developer
+
+↓
+
+Git Push
+
+↓
+
+GitHub Actions
+
+↓
+
+Self Hosted Runner
+
+↓
+
+kubectl apply
+
+↓
+
+Kubernetes API Server
+
+↓
+
+Deployment Updated
+
+↓
+
+ReplicaSet Created
+
+↓
+
+Pods Updated
+
+↓
+
+Application Running
+```
+
+---
+
+# 4. Complete Deployment Flow
+
+Our actual deployment looked like this
+
+```text
+Developer
+
+↓
+
+git push
+
+↓
+
+GitHub Actions
+
+↓
+
+Checkout Repository
+
+↓
+
+Docker Build
+
+↓
+
+Security Scan
+
+↓
+
+kubectl apply -f k8/jerney.yml
+
+↓
+
+Kubernetes API Server
+
+↓
+
+Scheduler
+
+↓
+
+Node
+
+↓
+
+Pods Running
+```
+
+---
+
+# 5. Why GitHub Actions?
+
+Since
+
+our Kubernetes cluster
+
+was running on Docker Desktop,
+
+GitHub Actions
+
+executed
+
+```bash
+kubectl
+```
+
+locally through
+
+our Self Hosted Runner.
+
+---
+
+Architecture
+
+```text
+GitHub
+
+↓
+
+Self Hosted Runner
+
+↓
+
+Docker Desktop Kubernetes
+```
+
+---
+
+# 6. Connecting GitHub Actions to Kubernetes
+
+Self Hosted Runner already had
+
+```bash
+kubectl
+```
+
+installed.
+
+So GitHub Actions simply executed
+
+```bash
+kubectl apply
+```
+
+No SSH.
+
+No manual login.
+
+---
+
+# 7. kubectl apply Explained
+
+This command is one of the most important commands in Kubernetes.
+
+```bash
+kubectl apply -f k8/jerney.yml
+```
+
+Meaning
+
+```text
+Read YAML
+
+↓
+
+Compare Current State
+
+↓
+
+Compare Desired State
+
+↓
+
+Apply Difference
+```
+
+Kubernetes never recreates everything.
+
+It only updates what changed.
+
+---
+
+Example
+
+Backend image changed.
+
+Kubernetes updates
+
+ONLY
+
+Backend Deployment.
+
+Frontend
+
+Database
+
+remain untouched.
+
+---
+
+# 8. What Happens Inside Kubernetes?
+
+When we execute
+
+```bash
+kubectl apply
+```
+
+API Server receives request.
+
+```text
+API Server
+
+↓
+
+Stores YAML
+
+↓
+
+etcd
+
+↓
+
+Deployment Controller
+
+↓
+
+ReplicaSet
+
+↓
+
+Pods
+```
+
+Everything is automatic.
+
+---
+
+# 9. Rolling Update
+
+Suppose
+
+2 backend pods
+
+are running.
+
+```text
+Backend Pod 1
+
+Backend Pod 2
+```
+
+New image arrives.
+
+Kubernetes does NOT stop both.
+
+Instead
+
+```text
+Pod1
+
+↓
+
+New Pod Created
+
+↓
+
+Health Check
+
+↓
+
+Old Pod Deleted
+
+↓
+
+Repeat
+```
+
+Users never notice downtime.
+
+---
+
+Visual
+
+```text
+Old Pod
+
+↓
+
+New Pod Running
+
+↓
+
+Healthy
+
+↓
+
+Old Pod Removed
+```
+
+This is called
+
+Rolling Update.
+
+---
+
+# 10. Health Checks During Deployment
+
+Suppose new version is broken.
+
+Health Probe fails.
+
+```text
+New Pod
+
+↓
+
+Readiness Failed
+
+↓
+
+No Traffic
+
+↓
+
+Old Pod Continues
+```
+
+Users still access
+
+old version.
+
+---
+
+This is why we configured
+
+```yaml
+livenessProbe
+
+readinessProbe
+```
+
+inside our manifest.
+
+---
+
+# 11. Rollback
+
+Suppose deployment fails.
+
+Check history
+
+```bash
+kubectl rollout history deployment jerney-backend -n jerney-devops2
+```
+
+Rollback
+
+```bash
+kubectl rollout undo deployment jerney-backend -n jerney-devops2
+```
+
+Flow
+
+```text
+Version 5
+
+↓
+
+Problem
+
+↓
+
+Rollback
+
+↓
+
+Version 4
+```
+
+Application restored.
+
+---
+
+# 12. Deployment Commands
+
+Apply
+
+```bash
+kubectl apply -f k8/jerney.yml
+```
+
+---
+
+Check Pods
+
+```bash
+kubectl get pods -n jerney-devops2
+```
+
+---
+
+Deployments
+
+```bash
+kubectl get deploy -n jerney-devops2
+```
+
+---
+
+Services
+
+```bash
+kubectl get svc -n jerney-devops2
+```
+
+---
+
+Rollout Status
+
+```bash
+kubectl rollout status deployment/jerney-backend -n jerney-devops2
+```
+
+---
+
+History
+
+```bash
+kubectl rollout history deployment/jerney-backend -n jerney-devops2
+```
+
+---
+
+Rollback
+
+```bash
+kubectl rollout undo deployment/jerney-backend -n jerney-devops2
+```
+
+---
+
+Describe
+
+```bash
+kubectl describe deployment jerney-backend -n jerney-devops2
+```
+
+---
+
+Logs
+
+```bash
+kubectl logs <pod-name> -n jerney-devops2
+```
+
+---
+
+# 13. Problems We Faced
+
+## Problem 1
+
+Backend image not updated.
+
+Reason
+
+Old Docker image still existed.
+
+Solution
+
+```bash
+docker build --no-cache
+```
+
+---
+
+## Problem 2
+
+Backend Pod CrashLoopBackOff
+
+Reason
+
+Database not ready.
+
+Solution
+
+Added
+
+```yaml
+initContainer
+```
+
+---
+
+## Problem 3
+
+Database credentials incorrect.
+
+Solution
+
+Stored credentials inside Secret.
+
+---
+
+## Problem 4
+
+Frontend inaccessible.
+
+Solution
+
+Changed Service
+
+```yaml
+LoadBalancer
+
+↓
+
+NodePort
+```
+
+because we were running locally.
+
+---
+
+## Problem 5
+
+Application deployment succeeded
+
+but monitoring stack failed.
+
+Reason
+
+Helm chart version mismatch.
+
+Solution
+
+Reinstalled
+
+Prometheus
+
+Grafana
+
+Loki
+
+using compatible Helm charts.
+
+---
+
+# 14. Production Deployment Flow
+
+Large companies
+
+```text
+Developer
+
+↓
+
+Git Push
+
+↓
+
+GitHub
+
+↓
+
+CI
+
+↓
+
+Container Registry
+
+↓
+
+CD
+
+↓
+
+Kubernetes
+
+↓
+
+Monitoring
+
+↓
+
+Alerts
+```
+
+Monitoring tools
+
+```text
+Prometheus
+
+Grafana
+
+Loki
+
+Alertmanager
+```
+
+immediately start observing the new release.
+
+---
+
+# 15. GitHub Actions vs Argo CD
+
+Our project
+
+```text
+GitHub Actions
+
+↓
+
+kubectl apply
+
+↓
+
+Kubernetes
+```
+
+---
+
+Large companies
+
+```text
+Developer
+
+↓
+
+Git Push
+
+↓
+
+Git Repository
+
+↓
+
+Argo CD
+
+↓
+
+Kubernetes
+```
+
+---
+
+Difference
+
+GitHub Actions
+
+pushes changes.
+
+Argo CD
+
+continuously watches Git.
+
+Whenever YAML changes
+
+Argo CD automatically synchronizes the cluster.
+
+This approach is called
+
+**GitOps**.
+
+---
+
+# 16. Interview Questions
+
+## Q1
+
+What is Continuous Deployment?
+
+Automatically deploying validated software after CI succeeds.
+
+---
+
+## Q2
+
+Difference between CI and CD?
+
+CI prepares software.
+
+CD releases software.
+
+---
+
+## Q3
+
+What command deploys Kubernetes resources?
+
+```bash
+kubectl apply -f
+```
+
+---
+
+## Q4
+
+What is Rolling Update?
+
+Replacing Pods gradually without downtime.
+
+---
+
+## Q5
+
+Why Readiness Probe?
+
+Traffic is sent only after the application is ready.
+
+---
+
+## Q6
+
+What is Rollback?
+
+Returning to the previous stable Deployment revision.
+
+---
+
+## Q7
+
+Why Self Hosted Runner?
+
+Because our Kubernetes cluster was running locally and needed direct access from GitHub Actions.
+
+---
+
+## Q8
+
+Why do companies prefer Argo CD?
+
+Because it continuously synchronizes Kubernetes with the Git repository, follows GitOps principles, and provides automatic drift detection and self-healing.
+
+---
+
+# Real Interview Answer
+
+**Interviewer:** Explain your deployment pipeline.
+
+**Answer:**
+
+> "After developers pushed code to GitHub, our GitHub Actions workflow executed on a self-hosted runner. The CI pipeline built the frontend and backend Docker images, verified them, and scanned them using Trivy. Once the pipeline succeeded, GitHub Actions deployed the application to our Kubernetes cluster using `kubectl apply`. Kubernetes compared the desired state in the YAML file with the running cluster, created new ReplicaSets if needed, and performed rolling updates. We configured liveness and readiness probes to ensure only healthy Pods received traffic, and Kubernetes supported rollback in case a deployment failed."
+
+---
+
+# Chapter Summary
+
+In this chapter, we learned:
+
+* What Continuous Deployment (CD) is.
+* The difference between CI and CD.
+* How our GitHub Actions pipeline deployed to Kubernetes.
+* How `kubectl apply` works internally.
+* How Kubernetes performs rolling updates without downtime.
+* Why readiness and liveness probes are critical during deployment.
+* How rollback restores a previous working version.
+* The production deployment lifecycle.
+* Why GitOps with Argo CD is widely adopted in modern enterprises.
+* Interview-ready explanations based on our actual implementation.
+
+---
+
+## 📖 Next Chapter (Observability & Monitoring)
+
+The final chapter should be:
+
+# **Chapter 9 – Production Monitoring with Prometheus, Grafana & Loki**
+
+This chapter will document everything we implemented:
+
+* Installing Prometheus using Helm
+* Installing Grafana
+* Installing Loki
+* Installing Promtail
+* Connecting Grafana to Prometheus and Loki
+* Understanding metrics vs logs
+* Monitoring Kubernetes Pods
+* Viewing application logs
+* Investigating production issues using Grafana Explore
+* Real production troubleshooting scenarios
+* Alerts with Alertmanager
+* The issues we encountered (Grafana CrashLoopBackOff, Loki datasource configuration, Node Exporter CrashLoopBackOff) and how we resolved them
+* Real interview questions based on our monitoring setup
+
+After that chapter, you'll have a complete, end-to-end DevSecOps project document from Docker all the way to production monitoring.

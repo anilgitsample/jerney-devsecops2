@@ -1,0 +1,1164 @@
+
+
+# CHAPTER 6 – Kubernetes (Our Project Implementation)
+
+**Difficulty : ⭐⭐⭐⭐⭐**
+
+> This chapter explains **every line** of our `k8/jerney.yml` manifest, why we wrote it, how Kubernetes uses it, and how it behaves in production.
+
+---
+
+# Table of Contents
+
+1. Why Kubernetes?
+2. Docker vs Kubernetes
+3. Kubernetes Architecture
+4. Why We Created `jerney.yml`
+5. Complete Manifest Flow
+6. Namespace
+7. Secret
+8. PersistentVolumeClaim
+9. PostgreSQL Deployment
+10. PostgreSQL Service
+11. Backend Deployment
+12. Backend Service
+13. Frontend Deployment
+14. Frontend Service
+15. Network Policies
+16. Applying Manifest
+17. Kubernetes Objects Created
+18. How Pods Communicate
+19. Production Architecture
+20. Commands We Used
+21. Problems We Faced
+22. Interview Questions
+
+---
+
+# 1. Why Kubernetes?
+
+Docker can run containers.
+
+But Docker **cannot properly manage applications in production**.
+
+Imagine your backend crashes.
+
+Docker
+
+```text
+Backend
+
+↓
+
+Stopped
+
+↓
+
+Application Down
+```
+
+No automatic recovery.
+
+---
+
+Kubernetes
+
+```text
+Backend Pod
+
+↓
+
+Crash
+
+↓
+
+Kubernetes detects
+
+↓
+
+Creates New Pod
+
+↓
+
+Application Continues
+```
+
+This is why almost every company uses Kubernetes.
+
+---
+
+# 2. Docker vs Kubernetes
+
+Docker
+
+```text
+Runs Containers
+```
+
+Kubernetes
+
+```text
+Runs
+
+Monitors
+
+Restarts
+
+Scales
+
+Updates
+
+Schedules
+
+Containers
+```
+
+Docker is the engine.
+
+Kubernetes is the manager.
+
+---
+
+# 3. Our Kubernetes Architecture
+
+Our application became
+
+```text
+                    Browser
+
+                       │
+
+                       ▼
+
+             Frontend Service
+
+                       │
+
+          ┌────────────┴────────────┐
+
+          ▼                         ▼
+
+     Frontend Pod              Frontend Pod
+
+               │
+
+               ▼
+
+           Backend Service
+
+          ┌────────────┴───────────┐
+
+          ▼                        ▼
+
+     Backend Pod              Backend Pod
+
+               │
+
+               ▼
+
+           PostgreSQL Service
+
+               │
+
+               ▼
+
+          PostgreSQL Pod
+
+               │
+
+               ▼
+
+        Persistent Volume
+```
+
+Everything above is created from **one YAML file.**
+
+---
+
+# 4. Why One Manifest?
+
+Instead of creating 15 YAML files
+
+We combined everything.
+
+```text
+Namespace
+
+↓
+
+Secret
+
+↓
+
+PVC
+
+↓
+
+Deployment
+
+↓
+
+Service
+
+↓
+
+NetworkPolicy
+```
+
+into
+
+```text
+k8/jerney.yml
+```
+
+---
+
+# 5. Complete Manifest Flow
+
+When we executed
+
+```bash
+kubectl apply -f k8/jerney.yml
+```
+
+Kubernetes created
+
+```text
+Namespace
+
+↓
+
+Secret
+
+↓
+
+PVC
+
+↓
+
+Database
+
+↓
+
+Database Service
+
+↓
+
+Backend
+
+↓
+
+Backend Service
+
+↓
+
+Frontend
+
+↓
+
+Frontend Service
+
+↓
+
+Network Policies
+```
+
+Automatically.
+
+---
+
+# 6. Namespace
+
+Our first object
+
+```yaml
+apiVersion: v1
+kind: Namespace
+```
+
+Purpose
+
+Create a logical environment.
+
+---
+
+We created
+
+```yaml
+name: jerney-devops2
+```
+
+Why?
+
+Because clusters may contain
+
+```text
+HR Application
+
+Finance
+
+Monitoring
+
+Jerney
+```
+
+Namespaces isolate applications.
+
+---
+
+Without Namespace
+
+Everything goes into
+
+```text
+default
+```
+
+Bad practice.
+
+---
+
+# 7. Secret
+
+Our database credentials
+
+```yaml
+kind: Secret
+```
+
+Contained
+
+```text
+POSTGRES_USER
+
+POSTGRES_PASSWORD
+
+POSTGRES_DB
+```
+
+Instead of
+
+```yaml
+password: jerney123
+```
+
+inside Deployment.
+
+---
+
+Backend reads
+
+```yaml
+secretKeyRef
+```
+
+instead.
+
+---
+
+Production
+
+Secrets usually come from
+
+* HashiCorp Vault
+* AWS Secrets Manager
+* Azure Key Vault
+* External Secrets Operator
+
+---
+
+# 8. PersistentVolumeClaim
+
+One of the most important resources.
+
+Without PVC
+
+```text
+Delete Pod
+
+↓
+
+Delete Database
+
+↓
+
+Lose Data
+```
+
+---
+
+With PVC
+
+```text
+Delete Pod
+
+↓
+
+Volume Still Exists
+
+↓
+
+New Pod Uses Same Data
+```
+
+---
+
+Our PVC
+
+```yaml
+storageClassName: hostpath
+```
+
+Because
+
+We used Docker Desktop Kubernetes.
+
+---
+
+In AWS
+
+```yaml
+gp3
+```
+
+or
+
+```yaml
+ebs-sc
+```
+
+would be used.
+
+---
+
+# 9. PostgreSQL Deployment
+
+Our Deployment
+
+```yaml
+kind: Deployment
+```
+
+creates Pods.
+
+---
+
+Replica
+
+```yaml
+replicas: 1
+```
+
+Only one database.
+
+Reason
+
+PostgreSQL isn't stateless.
+
+---
+
+Image
+
+```yaml
+postgres:16-alpine
+```
+
+Small image.
+
+Fast startup.
+
+---
+
+Environment Variables
+
+Loaded from
+
+```yaml
+Secret
+```
+
+---
+
+Volume Mount
+
+```yaml
+mountPath:
+/var/lib/postgresql/data
+```
+
+Database stores files here.
+
+---
+
+Resources
+
+```yaml
+requests
+
+limits
+```
+
+Purpose
+
+Prevent database from consuming all memory.
+
+---
+
+Liveness Probe
+
+```yaml
+pg_isready
+```
+
+Checks
+
+```text
+Database Alive?
+```
+
+---
+
+Readiness Probe
+
+Checks
+
+```text
+Ready To Accept Connections?
+```
+
+---
+
+# 10. PostgreSQL Service
+
+Deployment IP changes.
+
+Service gives stable DNS.
+
+Instead of
+
+```text
+10.1.0.23
+```
+
+Backend connects using
+
+```text
+jerney-db
+```
+
+Kubernetes DNS resolves it automatically.
+
+---
+
+Service Type
+
+```yaml
+ClusterIP
+```
+
+Meaning
+
+Internal only.
+
+Nobody outside cluster can access database.
+
+---
+
+# 11. Backend Deployment
+
+Replica
+
+```yaml
+replicas: 2
+```
+
+Why?
+
+High Availability.
+
+If Pod 1 crashes
+
+Pod 2 still works.
+
+---
+
+Image
+
+```yaml
+jerney-devsecops2-backend
+```
+
+Built locally.
+
+---
+
+Image Pull Policy
+
+```yaml
+Never
+```
+
+Because
+
+Docker Desktop already has image.
+
+---
+
+Production
+
+Usually
+
+```yaml
+IfNotPresent
+```
+
+or
+
+```yaml
+Always
+```
+
+---
+
+Environment Variables
+
+Database Host
+
+```yaml
+jerney-db
+```
+
+NOT
+
+```yaml
+localhost
+```
+
+---
+
+Why?
+
+Backend and database are different Pods.
+
+---
+
+# Init Container
+
+One of the smartest things we implemented.
+
+```yaml
+wait-for-db
+```
+
+Flow
+
+```text
+Backend Starts
+
+↓
+
+Database Not Ready
+
+↓
+
+Wait
+
+↓
+
+Database Ready
+
+↓
+
+Backend Starts
+```
+
+Without this
+
+Backend crashes immediately.
+
+---
+
+# Backend Health Checks
+
+```yaml
+/api/health
+```
+
+Kubernetes checks
+
+```text
+HTTP 200?
+
+↓
+
+Healthy
+```
+
+Otherwise
+
+Restart Pod.
+
+---
+
+# 12. Backend Service
+
+Type
+
+```yaml
+ClusterIP
+```
+
+Reason
+
+Only frontend should call backend.
+
+No internet access.
+
+---
+
+Frontend uses
+
+```text
+jerney-backend
+```
+
+---
+
+# 13. Frontend Deployment
+
+Replica
+
+```yaml
+2
+```
+
+Again
+
+High Availability.
+
+---
+
+Container
+
+```yaml
+Nginx
+```
+
+serves React files.
+
+---
+
+Health Checks
+
+```yaml
+/
+```
+
+If homepage returns
+
+200
+
+Pod is healthy.
+
+---
+
+# 14. Frontend Service
+
+Type
+
+```yaml
+NodePort
+```
+
+Why?
+
+Because
+
+We deployed locally.
+
+No AWS Load Balancer.
+
+---
+
+Production
+
+Normally
+
+```yaml
+LoadBalancer
+```
+
+---
+
+NodePort exposes
+
+```text
+Node IP
+
+↓
+
+Port 31363
+
+↓
+
+Frontend
+```
+
+---
+
+# 15. Network Policies
+
+Production Security.
+
+Database accepts
+
+ONLY
+
+Backend.
+
+---
+
+Flow
+
+```text
+Frontend
+
+↓
+
+Backend
+
+↓
+
+Database
+```
+
+Frontend
+
+❌ Cannot directly access database.
+
+---
+
+Similarly
+
+Backend only accepts
+
+Frontend.
+
+---
+
+This prevents lateral attacks.
+
+---
+
+# 16. Applying Manifest
+
+We executed
+
+```bash
+kubectl apply -f k8/jerney.yml
+```
+
+Kubernetes API Server reads YAML.
+
+Creates resources.
+
+---
+
+Verification
+
+```bash
+kubectl get all -n jerney-devops2
+```
+
+Output
+
+```text
+Pods
+
+Services
+
+Deployments
+
+ReplicaSets
+```
+
+---
+
+# 17. Kubernetes Objects Created
+
+Our single YAML created
+
+```text
+1 Namespace
+
+1 Secret
+
+1 PVC
+
+3 Deployments
+
+3 Services
+
+2 Network Policies
+```
+
+Everything automatically.
+
+---
+
+# 18. Pod Communication
+
+```text
+Browser
+
+↓
+
+Frontend Service
+
+↓
+
+Frontend Pod
+
+↓
+
+Backend Service
+
+↓
+
+Backend Pod
+
+↓
+
+DB Service
+
+↓
+
+DB Pod
+```
+
+Notice
+
+Pods never communicate using IP addresses.
+
+They always use Services.
+
+---
+
+# 19. Production Architecture
+
+Real company architecture
+
+```text
+Internet
+
+↓
+
+LoadBalancer
+
+↓
+
+Ingress
+
+↓
+
+Frontend Pods
+
+↓
+
+Backend Pods
+
+↓
+
+Database
+
+↓
+
+Persistent Volume
+```
+
+Monitoring
+
+```text
+Prometheus
+
+Grafana
+
+Loki
+```
+
+Runs alongside.
+
+---
+
+# 20. Commands We Used
+
+Create
+
+```bash
+kubectl apply -f k8/jerney.yml
+```
+
+Delete
+
+```bash
+kubectl delete -f k8/jerney.yml
+```
+
+Pods
+
+```bash
+kubectl get pods -n jerney-devops2
+```
+
+Services
+
+```bash
+kubectl get svc -n jerney-devops2
+```
+
+Deployments
+
+```bash
+kubectl get deploy -n jerney-devops2
+```
+
+Logs
+
+```bash
+kubectl logs <pod-name> -n jerney-devops2
+```
+
+Describe
+
+```bash
+kubectl describe pod <pod-name>
+```
+
+---
+
+# 21. Problems We Faced
+
+### Problem 1
+
+Backend couldn't connect to DB.
+
+Reason
+
+Database wasn't ready.
+
+Solution
+
+Added
+
+```yaml
+initContainer
+```
+
+---
+
+### Problem 2
+
+Database password mismatch.
+
+Solution
+
+Stored credentials inside Secret.
+
+---
+
+### Problem 3
+
+Data disappeared after Pod deletion.
+
+Solution
+
+Created PVC.
+
+---
+
+### Problem 4
+
+Couldn't access frontend.
+
+Solution
+
+Used NodePort.
+
+---
+
+### Problem 5
+
+Wanted better security.
+
+Solution
+
+Implemented Network Policies.
+
+---
+
+# 22. Interview Questions
+
+### Q1. Why Namespace?
+
+To isolate application resources.
+
+---
+
+### Q2. Why Secret?
+
+To securely store sensitive values like passwords.
+
+---
+
+### Q3. Why PVC?
+
+To preserve PostgreSQL data across Pod restarts.
+
+---
+
+### Q4. Why Deployment instead of Pod?
+
+Deployment automatically manages Pods, restarts failures, and supports rolling updates.
+
+---
+
+### Q5. Why ClusterIP?
+
+For internal communication between services.
+
+---
+
+### Q6. Why NodePort?
+
+To expose the frontend locally because we weren't using a cloud LoadBalancer.
+
+---
+
+### Q7. Why Init Container?
+
+To wait until PostgreSQL becomes available before starting the backend.
+
+---
+
+### Q8. Why Network Policies?
+
+To restrict traffic so only authorized Pods can communicate, improving security.
+
+---
+
+# Real Interview Answer
+
+**Interviewer:** Explain your Kubernetes deployment.
+
+**Answer:**
+
+> "We packaged the entire application into a single Kubernetes manifest. It created a dedicated namespace, Kubernetes Secret for database credentials, a PersistentVolumeClaim for PostgreSQL storage, Deployments for the database, backend, and frontend, ClusterIP Services for internal communication, a NodePort Service for exposing the frontend locally, and Network Policies to restrict traffic. We also added an initContainer to ensure the backend waited for the database before starting, along with liveness and readiness probes for health monitoring. This architecture closely resembles a production-grade Kubernetes deployment."
+
+---
+
+# 📖 Next Chapters
+
+* **Chapter 7 – CI (GitHub Actions)** → How code is built, tested, Docker images are created, Trivy scans are executed, and artifacts are prepared.
+* **Chapter 8 – CD (GitHub Actions → Kubernetes)** → How the pipeline deploys the application to the Kubernetes cluster using `kubectl`, deployment strategies, rollout, rollback, and how we later discussed GitOps with Argo CD.
+
+These two chapters together will complete the end-to-end DevSecOps pipeline for the Jerney project.

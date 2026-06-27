@@ -1,0 +1,885 @@
+Perfect. Now we'll move to one of the **most important chapters** because **Docker Compose** is where all three services (Frontend, Backend, DB) are connected. I'll also include what **we actually did** in our project.
+
+---
+
+# JERNEY DEVSECOPS PROJECT DOCUMENTATION
+
+# CHAPTER 4 – Docker Compose Deep Dive
+
+**Difficulty:** ⭐⭐⭐⭐☆
+
+---
+
+# Table of Contents
+
+1. What is Docker Compose?
+2. Why did we use Docker Compose?
+3. Life Before Docker Compose
+4. Docker Compose Architecture
+5. docker-compose.yml Structure
+6. Services
+7. Frontend Service
+8. Backend Service
+9. Database Service
+10. Volumes
+11. Networks
+12. Environment Variables
+13. Health Checks
+14. Startup Flow
+15. Commands We Used
+16. Problems We Faced
+17. Real-Time Production Usage
+18. Interview Questions
+19. Summary
+
+---
+
+# 1. What is Docker Compose?
+
+Docker Compose is a tool used to run **multiple containers together** using a single YAML file.
+
+Without Compose:
+
+```text
+docker run frontend
+
+docker run backend
+
+docker run postgres
+```
+
+Every container has to be started manually.
+
+With Compose:
+
+```bash
+docker compose up -d
+```
+
+Everything starts automatically.
+
+---
+
+# 2. Why Did We Use Docker Compose?
+
+Our application has three different components.
+
+```text
+Frontend
+
+↓
+
+Backend
+
+↓
+
+PostgreSQL
+```
+
+All three must communicate with each other.
+
+Docker Compose makes this communication automatic.
+
+---
+
+# 3. Life Before Docker Compose
+
+Suppose Docker Compose didn't exist.
+
+You would do something like this:
+
+```text
+Start PostgreSQL
+
+↓
+
+Create Network
+
+↓
+
+Start Backend
+
+↓
+
+Connect Backend to Network
+
+↓
+
+Start Frontend
+
+↓
+
+Connect Frontend
+
+↓
+
+Check Logs
+
+↓
+
+Application Ready
+```
+
+Many manual steps.
+
+---
+
+# Docker Compose Solution
+
+One YAML file.
+
+One command.
+
+```bash
+docker compose up -d
+```
+
+Everything starts in the correct order.
+
+---
+
+# 4. Docker Compose Architecture
+
+```text
+docker-compose.yml
+
+↓
+
+Docker Engine
+
+↓
+
+Frontend Container
+
+↓
+
+Backend Container
+
+↓
+
+PostgreSQL Container
+
+↓
+
+Application Ready
+```
+
+---
+
+# 5. docker-compose.yml Structure
+
+Our file looks conceptually like this.
+
+```yaml
+version:
+
+services:
+
+frontend:
+
+backend:
+
+db:
+
+volumes:
+
+networks:
+```
+
+Let's understand each section.
+
+---
+
+# version
+
+Earlier Docker Compose required
+
+```yaml
+version: "3.8"
+```
+
+New Compose versions automatically understand the format.
+
+---
+
+# services
+
+The most important section.
+
+Every container is called a service.
+
+Example
+
+```yaml
+services:
+
+frontend:
+
+backend:
+
+db:
+```
+
+---
+
+# Our Services
+
+```text
+Frontend
+
+↓
+
+React Application
+
+Backend
+
+↓
+
+NodeJS API
+
+Database
+
+↓
+
+PostgreSQL
+```
+
+---
+
+# 6. Frontend Service
+
+Responsibilities
+
+* Build React
+* Serve application
+* Communicate with Backend
+
+Typical configuration
+
+```yaml
+frontend:
+
+build:
+
+ports:
+
+depends_on:
+```
+
+---
+
+## build
+
+Docker builds image.
+
+Equivalent command
+
+```bash
+docker build
+```
+
+---
+
+## ports
+
+Example
+
+```yaml
+80:80
+```
+
+Meaning
+
+```text
+Laptop Port
+
+↓
+
+80
+
+↓
+
+Container Port
+
+↓
+
+80
+```
+
+---
+
+Browser accesses
+
+```text
+http://localhost
+```
+
+---
+
+## depends_on
+
+Example
+
+```yaml
+depends_on:
+
+backend
+```
+
+Meaning
+
+Frontend should wait until backend container starts.
+
+---
+
+# 7. Backend Service
+
+Responsibilities
+
+* Start Express
+* Connect Database
+* Process APIs
+
+Typical configuration
+
+```yaml
+backend:
+
+build:
+
+environment:
+
+depends_on:
+
+ports:
+```
+
+---
+
+Backend communicates with
+
+```text
+PostgreSQL
+```
+
+using Docker network.
+
+---
+
+# 8. Database Service
+
+Database image
+
+```text
+PostgreSQL
+```
+
+Configuration includes
+
+```yaml
+image:
+
+environment:
+
+volumes:
+
+healthcheck:
+```
+
+---
+
+## image
+
+Instead of building,
+
+Docker downloads official PostgreSQL image.
+
+---
+
+## environment
+
+Contains
+
+```text
+Database Name
+
+Username
+
+Password
+```
+
+These values initialize PostgreSQL.
+
+---
+
+## volumes
+
+Without volume
+
+```text
+Container Removed
+
+↓
+
+Database Lost
+```
+
+With volume
+
+```text
+Database
+
+↓
+
+Volume
+
+↓
+
+Safe
+```
+
+---
+
+# 9. Docker Network
+
+One of the biggest advantages.
+
+Compose automatically creates a private network.
+
+```text
+Frontend
+
+↓
+
+Backend
+
+↓
+
+Database
+```
+
+No need to know IP addresses.
+
+Backend connects using
+
+```text
+db
+```
+
+instead of
+
+```text
+192.168.x.x
+```
+
+This is called **Docker DNS**.
+
+---
+
+# Real Example
+
+Backend configuration
+
+```text
+Host=db
+```
+
+NOT
+
+```text
+Host=localhost
+```
+
+Because backend and database are in different containers.
+
+---
+
+# 10. Environment Variables
+
+Example
+
+```text
+POSTGRES_DB
+
+POSTGRES_USER
+
+POSTGRES_PASSWORD
+```
+
+Purpose
+
+Avoid hardcoding values inside application code.
+
+---
+
+# 11. Health Checks
+
+One of the most useful features.
+
+Instead of simply checking
+
+```text
+Container Running
+```
+
+Compose checks
+
+```text
+Application Working?
+```
+
+Example
+
+```text
+Database accepts connections?
+
+YES
+
+↓
+
+Healthy
+```
+
+---
+
+# Why Health Checks?
+
+Suppose PostgreSQL takes 20 seconds to initialize.
+
+Backend starts immediately.
+
+Backend tries to connect.
+
+Connection fails.
+
+Health check prevents this.
+
+---
+
+Flow
+
+```text
+Database Starting
+
+↓
+
+Health Check
+
+↓
+
+Healthy
+
+↓
+
+Backend Starts
+```
+
+---
+
+# 12. Complete Startup Sequence
+
+When we execute
+
+```bash
+docker compose up -d
+```
+
+Docker performs these steps.
+
+```text
+Read docker-compose.yml
+
+↓
+
+Create Network
+
+↓
+
+Create Volume
+
+↓
+
+Download Images
+
+↓
+
+Build Frontend
+
+↓
+
+Build Backend
+
+↓
+
+Start PostgreSQL
+
+↓
+
+Wait Health Check
+
+↓
+
+Start Backend
+
+↓
+
+Start Frontend
+
+↓
+
+Application Ready
+```
+
+---
+
+# 13. Commands We Used
+
+Start
+
+```bash
+docker compose up -d
+```
+
+---
+
+Stop
+
+```bash
+docker compose down
+```
+
+---
+
+Rebuild
+
+```bash
+docker compose up --build
+```
+
+---
+
+View Logs
+
+```bash
+docker compose logs
+```
+
+---
+
+Specific Service
+
+```bash
+docker compose logs backend
+```
+
+---
+
+Check Running Containers
+
+```bash
+docker compose ps
+```
+
+---
+
+Restart
+
+```bash
+docker compose restart
+```
+
+---
+
+# 14. Problems We Faced
+
+## Problem 1
+
+Frontend Build Failed
+
+Reason
+
+Dockerfile mistake.
+
+```text
+RUN RUN npm install
+```
+
+Solution
+
+Removed duplicate RUN.
+
+---
+
+## Problem 2
+
+Docker Engine Not Running
+
+Error
+
+```text
+error during connect
+```
+
+Root Cause
+
+Docker Desktop stopped.
+
+Solution
+
+Started Docker Desktop.
+
+---
+
+## Problem 3
+
+Backend Already Running
+
+Error
+
+```text
+EADDRINUSE
+
+5000
+```
+
+Root Cause
+
+PM2 already running backend.
+
+Solution
+
+Stopped old process.
+
+---
+
+## Problem 4
+
+Container Cannot Connect to Database
+
+Root Cause
+
+Wrong hostname.
+
+Correct
+
+```text
+db
+```
+
+Wrong
+
+```text
+localhost
+```
+
+---
+
+# 15. Why We Didn't Continue with Docker Compose
+
+Compose is excellent for
+
+Development.
+
+But our goal was
+
+```text
+Docker
+
+↓
+
+Compose
+
+↓
+
+Kubernetes
+```
+
+Companies use Compose for local development.
+
+Production usually uses Kubernetes.
+
+That is why we moved to Kubernetes after validating our application with Compose.
+
+---
+
+# 16. Interview Questions
+
+### Q1. Why Docker Compose?
+
+To manage multiple containers together using a single YAML file.
+
+---
+
+### Q2. Difference between Docker and Docker Compose?
+
+Docker runs one container.
+
+Docker Compose manages multiple containers.
+
+---
+
+### Q3. Why use volumes?
+
+To persist database data even if containers are deleted.
+
+---
+
+### Q4. Why use networks?
+
+To allow containers to communicate securely using service names instead of IP addresses.
+
+---
+
+### Q5. Why use depends_on?
+
+To control startup order.
+
+---
+
+### Q6. Why use health checks?
+
+To ensure a service is actually ready before dependent services start.
+
+---
+
+# Real Interview Answer
+
+**Interviewer:** Explain how your Docker Compose worked.
+
+**Answer:**
+
+> "Our application consisted of three services: React frontend, Node.js backend, and PostgreSQL database. Docker Compose allowed us to define all services in a single YAML file. It automatically created a private network, so the backend connected to the database using the service name instead of an IP address. We used volumes to persist PostgreSQL data and health checks to ensure the database was ready before the backend attempted to connect. During development, a single `docker compose up -d` command brought up the entire application stack."
+
+---
+
+# Chapter Summary
+
+In this chapter, we learned:
+
+* What Docker Compose is.
+* Why it was necessary for our project.
+* How it orchestrated the frontend, backend, and database.
+* How Docker networks, volumes, and environment variables worked together.
+* Why `depends_on` and health checks are important.
+* The startup sequence followed by Docker Compose.
+* The issues we encountered and how we resolved them.
+* Why we eventually moved from Docker Compose to Kubernetes.
+
+---
+
+# 📖 Next Chapter (One of the Biggest)
+
+**CHAPTER 5 – Git & GitHub Workflow (Our Project)**
+
+This chapter will cover **our complete Git workflow**, including:
+
+* Creating the repository
+* Branch strategy (`feature`, `develop`, `main`)
+* Why we used feature branches
+* Pull Requests
+* Merge flow
+* Git commands we executed
+* Mistakes we made (like confusion around merges)
+* GitHub Actions trigger flow
+* Best practices followed in real companies
+* Interview questions based on **our actual workflow**

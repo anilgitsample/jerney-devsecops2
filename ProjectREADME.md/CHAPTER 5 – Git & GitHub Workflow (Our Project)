@@ -1,0 +1,784 @@
+Excellent. 👏 From this chapter onward we're entering the **DevOps lifecycle**. This is where interviewers spend a lot of time because they want to know how your code moves from your laptop to production.
+
+---
+
+# JERNEY DEVSECOPS PROJECT DOCUMENTATION
+
+# CHAPTER 5 – Git & GitHub Workflow (Our Project)
+
+**Difficulty:** ⭐⭐⭐☆☆
+
+---
+
+# Table of Contents
+
+1. Why Git?
+2. Why GitHub?
+3. Our Git Workflow
+4. Repository Structure
+5. Branch Strategy
+6. Feature Branch Development
+7. Pull Requests
+8. Merge Process
+9. Git Commands We Used
+10. Mistakes We Made
+11. GitHub Actions Trigger
+12. Real-Time Company Workflow
+13. Interview Questions
+14. Summary
+
+---
+
+# 1. What is Git?
+
+Git is a **Version Control System (VCS)**.
+
+It tracks every change made to your source code.
+
+Think of Git as a **time machine** for your project.
+
+```text
+Version 1
+      ↓
+Version 2
+      ↓
+Version 3
+      ↓
+Version 4
+```
+
+At any point, you can go back to an earlier version if something breaks.
+
+---
+
+# Why is Git Needed?
+
+Imagine there is **no Git**.
+
+Developer changes 50 files.
+
+Application crashes.
+
+Now...
+
+❌ Which file caused the issue?
+
+❌ What changed?
+
+❌ How do we restore yesterday's code?
+
+Almost impossible.
+
+---
+
+With Git
+
+```text
+Commit 1
+
+↓
+
+Commit 2
+
+↓
+
+Commit 3
+
+↓
+
+Commit 4
+```
+
+Every change is recorded.
+
+---
+
+# 2. What is GitHub?
+
+Git stores code **locally**.
+
+GitHub stores code **remotely**.
+
+```text
+Developer Laptop
+
+↓
+
+Git
+
+↓
+
+GitHub
+```
+
+GitHub acts as:
+
+* Remote Repository
+* Backup
+* Collaboration Platform
+* CI/CD Trigger Source
+
+---
+
+# 3. Our Project Workflow
+
+Our actual workflow looked like this:
+
+```text
+Write Code
+
+↓
+
+git add
+
+↓
+
+git commit
+
+↓
+
+git push
+
+↓
+
+GitHub
+
+↓
+
+Pull Request
+
+↓
+
+Merge
+
+↓
+
+GitHub Actions
+
+↓
+
+Deployment
+```
+
+---
+
+# 4. Repository Structure
+
+Our repository contained:
+
+```text
+jerney-devsecops2/
+
+frontend/
+
+backend/
+
+k8/
+
+.github/
+
+docker-compose.yml
+
+README.md
+```
+
+---
+
+# 5. Branch Strategy
+
+We used multiple branches.
+
+```text
+main
+
+develop
+
+feature
+```
+
+---
+
+## main
+
+Production branch.
+
+Only stable code should exist here.
+
+---
+
+## develop
+
+Integration branch.
+
+All completed features are merged here first.
+
+---
+
+## feature
+
+Developer works here.
+
+Example
+
+```text
+feature/login
+
+feature/blog
+
+feature/docker
+```
+
+---
+
+# Why Use Feature Branches?
+
+Imagine three developers.
+
+Developer A
+
+```text
+Login Feature
+```
+
+Developer B
+
+```text
+Payment Feature
+```
+
+Developer C
+
+```text
+Comments Feature
+```
+
+If all of them work directly on `main`...
+
+💥 Conflicts.
+
+Instead
+
+```text
+feature/login
+
+↓
+
+develop
+
+↓
+
+main
+```
+
+---
+
+# Our Workflow
+
+We followed:
+
+```text
+feature
+
+↓
+
+develop
+
+↓
+
+main
+```
+
+---
+
+# 6. Feature Development
+
+Suppose we wanted to modify the Dockerfile.
+
+First
+
+```bash
+git checkout feature
+```
+
+Make changes.
+
+Then
+
+```bash
+git add .
+```
+
+Then
+
+```bash
+git commit -m "Updated frontend Dockerfile"
+```
+
+Then
+
+```bash
+git push origin feature
+```
+
+---
+
+# 7. Pull Request (PR)
+
+After pushing the feature branch,
+
+GitHub shows:
+
+```text
+Compare & Pull Request
+```
+
+Click it.
+
+Now
+
+```text
+feature
+
+↓
+
+develop
+```
+
+After review,
+
+Merge.
+
+---
+
+# Next Step
+
+Once `develop` is tested,
+
+Create another PR.
+
+```text
+develop
+
+↓
+
+main
+```
+
+---
+
+# Why Two-Step Merge?
+
+This protects production.
+
+```text
+feature
+
+↓
+
+develop
+
+↓
+
+Testing
+
+↓
+
+main
+
+↓
+
+Production
+```
+
+---
+
+# 8. The Confusion We Faced
+
+During our project, you asked:
+
+> "Feature branch merge ayindi. Develop merge ayindi. Main branch ki enduku malli merge cheyyali?"
+
+This is a very common doubt.
+
+---
+
+## Answer
+
+Feature branch is **your work**.
+
+Develop branch is **team integration**.
+
+Main branch is **production**.
+
+Example:
+
+```text
+Developer A
+
+↓
+
+feature/login
+
+↓
+
+develop
+
+Developer B
+
+↓
+
+feature/payment
+
+↓
+
+develop
+
+Developer C
+
+↓
+
+feature/blog
+
+↓
+
+develop
+
+↓
+
+QA Testing
+
+↓
+
+main
+```
+
+---
+
+# 9. Git Commands We Used
+
+Clone
+
+```bash
+git clone <repo>
+```
+
+---
+
+Status
+
+```bash
+git status
+```
+
+---
+
+Create Branch
+
+```bash
+git checkout -b feature
+```
+
+---
+
+Switch Branch
+
+```bash
+git checkout develop
+```
+
+---
+
+Add Files
+
+```bash
+git add .
+```
+
+---
+
+Commit
+
+```bash
+git commit -m "Added Docker support"
+```
+
+---
+
+Push
+
+```bash
+git push origin feature
+```
+
+---
+
+Pull Latest
+
+```bash
+git pull origin develop
+```
+
+---
+
+View Branches
+
+```bash
+git branch
+```
+
+---
+
+View Remote
+
+```bash
+git remote -v
+```
+
+---
+
+# 10. Mistakes We Made
+
+## Mistake 1
+
+Confused about merge sequence.
+
+We thought:
+
+```text
+feature
+
+↓
+
+main
+```
+
+Correct workflow:
+
+```text
+feature
+
+↓
+
+develop
+
+↓
+
+main
+```
+
+---
+
+## Mistake 2
+
+Question:
+
+> "Should I run git add, git commit, git push on every branch?"
+
+Answer:
+
+Only on the branch where you make changes.
+
+Example:
+
+If you're working on `feature`:
+
+```bash
+git add .
+git commit -m "..."
+git push origin feature
+```
+
+After that,
+
+Create a PR.
+
+GitHub handles the merge.
+
+You do **not** manually repeat the same commit on `develop` and `main`.
+
+---
+
+# 11. GitHub Actions Trigger
+
+Our CI/CD starts after merge.
+
+```text
+Developer
+
+↓
+
+Push
+
+↓
+
+GitHub
+
+↓
+
+GitHub Actions
+
+↓
+
+Workflow Starts
+```
+
+Workflow file:
+
+```text
+.github/workflows/ci.yml
+```
+
+---
+
+# 12. Real Company Workflow
+
+Imagine a team.
+
+```text
+Developer
+
+↓
+
+Feature Branch
+
+↓
+
+Pull Request
+
+↓
+
+Code Review
+
+↓
+
+QA
+
+↓
+
+Develop
+
+↓
+
+Release Branch
+
+↓
+
+Main
+
+↓
+
+Production
+```
+
+Nobody commits directly to `main`.
+
+---
+
+# 13. Best Practices
+
+✅ Small commits
+
+✅ Meaningful commit messages
+
+✅ One feature per branch
+
+✅ PR reviews
+
+✅ Protect main branch
+
+✅ Never push broken code
+
+---
+
+# 14. Interview Questions
+
+## Q1. Why Git?
+
+To track source code changes and collaborate safely.
+
+---
+
+## Q2. Difference between Git and GitHub?
+
+Git → Version Control Tool.
+
+GitHub → Remote hosting platform for Git repositories.
+
+---
+
+## Q3. Why feature branches?
+
+To isolate development and avoid affecting stable code.
+
+---
+
+## Q4. Why Pull Requests?
+
+To review code before merging.
+
+---
+
+## Q5. Why develop branch?
+
+To integrate multiple completed features before releasing to production.
+
+---
+
+## Q6. Can developers commit directly to main?
+
+In professional environments:
+
+**No.**
+
+The `main` branch is usually protected.
+
+Changes reach `main` only after:
+
+* Pull Request
+* Code Review
+* CI checks
+* Approval
+
+---
+
+# Real Interview Answer
+
+**Interviewer:** Explain your Git workflow.
+
+**Answer:**
+
+> "In our project, we followed a branching strategy with `feature`, `develop`, and `main`. I implemented changes in a feature branch, committed and pushed them to GitHub, then created a Pull Request into the `develop` branch. After testing and validation, the changes were merged into `main`, which represented our production-ready code. GitHub Actions was configured to trigger the CI/CD pipeline after the merge."
+
+---
+
+# Chapter Summary
+
+In this chapter, we learned:
+
+* Why Git and GitHub are essential.
+* Our repository structure.
+* The purpose of `feature`, `develop`, and `main` branches.
+* The Pull Request workflow we followed.
+* The Git commands we used.
+* The merge confusion we encountered and how we resolved it.
+* How GitHub Actions fits into the workflow.
+* Industry best practices and interview-ready explanations.
+
+---
+
+# 📖 Next Chapter (One of the Most Important)
+
+## **CHAPTER 6 – CI/CD with GitHub Actions (Our Actual Implementation)**
+
+This chapter will be entirely based on **our GitHub Actions workflow**, including:
+
+* The actual workflow YAML we wrote.
+* Every job (`build`, `success`, `deploy`) explained line by line.
+* Why we used a **self-hosted runner**.
+* How we connected GitHub Actions to our local Kubernetes cluster.
+* Why we first deployed using `kubectl apply` and later discussed **Argo CD**.
+* The complete CI/CD flow from `git push` to Kubernetes deployment.
+* The issues we encountered and how we fixed them.
+* Real production practices and interview questions.
+
+This is the chapter where our project starts looking like a real DevOps production pipeline.

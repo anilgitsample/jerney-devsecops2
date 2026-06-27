@@ -1,0 +1,919 @@
+Absolutely. From this chapter onward, I'll avoid generic explanations and focus on **our Jerney project**. Where I don't know the exact contents of a file (because it isn't in this chat), I'll clearly mark it and complete it once you upload the project.
+
+---
+
+# JERNEY DEVSECOPS PROJECT DOCUMENTATION
+
+# CHAPTER 2 – Project Structure & Application Source Code
+
+---
+
+# Table of Contents
+
+1. Project Folder Structure
+2. Frontend
+3. Backend
+4. Database
+5. Deployment Folder
+6. GitHub Folder
+7. Kubernetes Folder
+8. Monitoring Folder
+9. How Everything Connects
+10. Application Request Flow
+11. Interview Questions
+12. Chapter Summary
+
+---
+
+# 1. Project Folder Structure
+
+Our project directory looks like this:
+
+```text
+jerney-devsecops2/
+
+│
+├── backend/
+│
+├── frontend/
+│
+├── deploy/
+│
+├── k8/
+│
+├── .github/
+│    └── workflows/
+│
+├── docker-compose.yml
+│
+├── README.md
+│
+└── .gitignore
+```
+
+---
+
+# Folder Responsibilities
+
+| Folder             | Purpose                    |
+| ------------------ | -------------------------- |
+| frontend           | React Application          |
+| backend            | NodeJS APIs                |
+| deploy             | Local/Server setup scripts |
+| k8                 | Kubernetes YAML files      |
+| .github            | GitHub Actions CI/CD       |
+| docker-compose.yml | Local Docker Environment   |
+| README             | Project Documentation      |
+
+---
+
+# 2. Frontend
+
+The frontend is responsible for everything the user sees.
+
+Typical structure:
+
+```text
+frontend/
+
+src/
+
+public/
+
+package.json
+
+vite.config.js
+
+Dockerfile
+
+nginx.conf
+```
+
+---
+
+## src/
+
+Contains the React application.
+
+Example:
+
+```text
+src/
+
+components/
+
+pages/
+
+App.jsx
+
+main.jsx
+```
+
+---
+
+### Components
+
+Reusable UI.
+
+Example
+
+```text
+Navbar
+
+Footer
+
+Blog Card
+
+Login Form
+
+Comment Box
+```
+
+---
+
+### Pages
+
+Actual screens.
+
+Example
+
+```text
+Home
+
+Create Blog
+
+Edit Blog
+
+Blog Details
+```
+
+---
+
+### App.jsx
+
+Main React Component.
+
+Responsibilities
+
+```text
+Routing
+
+Page Loading
+
+Global Layout
+
+Authentication
+```
+
+---
+
+### main.jsx
+
+Application Entry Point.
+
+When browser loads
+
+↓
+
+main.jsx executes
+
+↓
+
+React renders App.jsx
+
+↓
+
+App loads pages
+
+---
+
+## package.json
+
+This file manages frontend dependencies.
+
+Example
+
+```json
+{
+"name":"frontend",
+"scripts":{
+"dev":"vite",
+"build":"vite build"
+}
+}
+```
+
+---
+
+Interview Question
+
+**What is package.json?**
+
+Answer
+
+package.json stores
+
+* Dependencies
+* Scripts
+* Version
+* Project metadata
+
+---
+
+# Frontend Dockerfile
+
+This is one of the most important files.
+
+Our project uses a **multi-stage Docker build**.
+
+Structure:
+
+```dockerfile
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY package*.json .
+
+RUN npm install
+
+COPY .
+
+RUN npm run build
+
+FROM nginx:alpine
+
+COPY --from=build ...
+
+EXPOSE 80
+
+CMD ...
+```
+
+> **Important:** We'll dedicate an entire chapter just to Dockerfiles (Chapter 3). There, every line will be explained in detail.
+
+---
+
+# Frontend Flow
+
+```text
+User
+
+↓
+
+Browser
+
+↓
+
+React
+
+↓
+
+API Call
+
+↓
+
+Backend
+```
+
+---
+
+# 3. Backend
+
+Backend contains business logic.
+
+Typical structure
+
+```text
+backend/
+
+src/
+
+package.json
+
+Dockerfile
+
+.env
+```
+
+---
+
+## src/
+
+Contains NodeJS code.
+
+Example
+
+```text
+src/
+
+index.js
+
+routes/
+
+controllers/
+
+models/
+
+middleware/
+```
+
+---
+
+### index.js
+
+Application starts here.
+
+Responsibilities
+
+```text
+Express Server
+
+Routes
+
+Database Connection
+
+Middleware
+
+API Initialization
+```
+
+---
+
+### Routes
+
+Example
+
+```text
+GET /blogs
+
+POST /blogs
+
+PUT /blogs/:id
+
+DELETE /blogs/:id
+```
+
+---
+
+### Controllers
+
+Business Logic.
+
+Example
+
+```text
+Create Blog
+
+Delete Blog
+
+Update Blog
+
+Fetch Blogs
+```
+
+---
+
+### Models
+
+Database queries.
+
+Communicates with PostgreSQL.
+
+---
+
+### Middleware
+
+Example
+
+```text
+Authentication
+
+Logging
+
+Error Handling
+
+CORS
+```
+
+---
+
+## Backend Flow
+
+```text
+Frontend
+
+↓
+
+HTTP Request
+
+↓
+
+Express
+
+↓
+
+Controller
+
+↓
+
+Database
+
+↓
+
+Controller
+
+↓
+
+JSON Response
+
+↓
+
+Frontend
+```
+
+---
+
+## Backend package.json
+
+Contains
+
+```text
+Express
+
+Postgres
+
+dotenv
+
+nodemon
+
+etc
+```
+
+---
+
+# Backend Dockerfile
+
+Structure
+
+```dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json .
+
+RUN npm install
+
+COPY .
+
+EXPOSE 5000
+
+CMD ...
+```
+
+Again,
+
+Every single line will be explained in Docker Chapter.
+
+---
+
+# 4. Database
+
+Database used
+
+```text
+PostgreSQL
+```
+
+Responsibilities
+
+```text
+Store Blogs
+
+Store Comments
+
+Store Users
+
+Store Metadata
+```
+
+---
+
+Database Flow
+
+```text
+Backend
+
+↓
+
+SQL Query
+
+↓
+
+PostgreSQL
+
+↓
+
+Rows
+
+↓
+
+Backend
+```
+
+---
+
+# 5. deploy/
+
+Contains scripts.
+
+Example
+
+```text
+setup.sh
+```
+
+Remember,
+
+We executed
+
+```bash
+chmod +x deploy/setup.sh
+
+./deploy/setup.sh
+```
+
+Initially this script was designed for an Ubuntu EC2 instance.
+
+We modified our approach and executed it inside **WSL Ubuntu** because we decided to avoid EC2 and AWS costs.
+
+The script installs:
+
+* Node.js
+* PostgreSQL
+* Nginx
+* PM2
+* Dependencies
+
+---
+
+# PM2
+
+After setup
+
+We started backend using PM2.
+
+Example
+
+```bash
+pm2 start src/index.js
+```
+
+PM2 responsibilities
+
+```text
+Auto Restart
+
+Process Monitoring
+
+Background Execution
+
+Logs
+```
+
+---
+
+# 6. .github/
+
+Contains CI/CD workflows.
+
+Example
+
+```text
+.github/
+
+workflows/
+
+ci.yml
+```
+
+Responsibilities
+
+```text
+Build
+
+Test
+
+Docker Build
+
+Deployment
+```
+
+Remember,
+
+Later we modified deployment to Kubernetes.
+
+---
+
+# 7. Kubernetes Folder
+
+Contains
+
+```text
+Namespace
+
+Secrets
+
+Deployments
+
+Services
+
+Persistent Volume Claims
+```
+
+Example
+
+```text
+jerney.yml
+```
+
+This single YAML creates
+
+* Namespace
+* Backend Deployment
+* Frontend Deployment
+* Database Deployment
+* Services
+* Secrets
+
+---
+
+# 8. Monitoring
+
+Contains monitoring configurations.
+
+Installed using Helm.
+
+Components
+
+```text
+Prometheus
+
+Grafana
+
+Loki
+
+Promtail
+```
+
+Responsibilities
+
+```text
+Metrics
+
+Dashboards
+
+Logs
+
+Alerting
+```
+
+---
+
+# 9. How Everything Connects
+
+```text
+Frontend
+
+↓
+
+Backend API
+
+↓
+
+Database
+
+↓
+
+Prometheus ← Metrics
+
+↓
+
+Grafana
+
+↓
+
+Loki ← Logs
+
+↓
+
+Promtail
+```
+
+---
+
+# 10. Complete Request Flow
+
+Suppose
+
+User clicks
+
+Create Blog
+
+---
+
+Step 1
+
+React sends
+
+```http
+POST /blogs
+```
+
+---
+
+Step 2
+
+Backend receives request.
+
+---
+
+Step 3
+
+Validation.
+
+---
+
+Step 4
+
+SQL Query.
+
+---
+
+Step 5
+
+Database stores blog.
+
+---
+
+Step 6
+
+Backend returns
+
+```json
+{
+"status":"success"
+}
+```
+
+---
+
+Step 7
+
+Frontend updates UI.
+
+---
+
+# 11. Complete Project Flow
+
+```text
+User
+
+↓
+
+React
+
+↓
+
+NodeJS
+
+↓
+
+PostgreSQL
+
+↓
+
+Response
+
+↓
+
+React
+
+↓
+
+Browser
+```
+
+At the same time
+
+```text
+Application
+
+↓
+
+Prometheus
+
+↓
+
+Metrics
+
+↓
+
+Grafana
+```
+
+and
+
+```text
+Application
+
+↓
+
+Promtail
+
+↓
+
+Loki
+
+↓
+
+Grafana
+```
+
+---
+
+# 12. Interview Questions
+
+### Q1. Explain your project architecture.
+
+**Answer**
+
+> Our project is a three-tier blog platform consisting of a React frontend, a Node.js backend, and a PostgreSQL database. We containerized the application using Docker, orchestrated it with Kubernetes, automated deployments through GitHub Actions, and implemented observability using Prometheus, Grafana, Loki, and Promtail.
+
+---
+
+### Q2. Why did you use a three-tier architecture?
+
+**Answer**
+
+It separates:
+
+* Presentation Layer
+* Business Logic Layer
+* Data Layer
+
+This makes the application easier to maintain, scale, and troubleshoot.
+
+---
+
+### Q3. Why did you use Kubernetes?
+
+Answer
+
+* Self Healing
+* Scaling
+* Rolling Updates
+* High Availability
+
+---
+
+### Q4. Why Docker?
+
+Answer
+
+To package the application with all dependencies so it behaves the same across development, testing, and production environments.
+
+---
+
+# Chapter Summary
+
+In this chapter we understood:
+
+* Overall project folder structure
+* Frontend responsibilities
+* Backend responsibilities
+* Database role
+* Deployment scripts
+* GitHub workflows
+* Kubernetes manifests
+* Monitoring components
+* End-to-end application request flow
+
+---
+
+# 📌 Next Chapter (Most Important)
+
+**Chapter 3 – Docker Deep Dive**
+
+This will be one of the biggest chapters in the handbook. We'll cover **our actual Docker implementation** in detail:
+
+* Our frontend Dockerfile (line by line)
+* Our backend Dockerfile (line by line)
+* `docker-compose.yml` (every section explained)
+* Docker images, containers, layers, networks, and volumes
+* Commands we executed
+* Problems we faced (including the `RUN RUN` Dockerfile issue and other build errors)
+* Root cause analysis and fixes
+* Real-world production usage
+* Interview questions based on **our Jerney project**, not generic Docker theory.

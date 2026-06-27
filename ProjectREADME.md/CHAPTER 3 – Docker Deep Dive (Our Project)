@@ -1,0 +1,1126 @@
+Perfect. From this chapter onward, I'll stop being generic and write it as **our project documentation**, including **the exact implementation decisions we made** (like using WSL + Docker Desktop Kubernetes instead of EKS).
+
+---
+
+# JERNEY DEVSECOPS PROJECT DOCUMENTATION
+
+# CHAPTER 3 – Docker Deep Dive (Our Project)
+
+**Difficulty:** ⭐⭐⭐⭐☆
+
+---
+
+# Table of Contents
+
+1. Why Docker?
+2. Problems Before Docker
+3. Docker Architecture
+4. Docker Installation
+5. Docker Components
+6. Our Docker Implementation
+7. Frontend Dockerfile
+8. Backend Dockerfile
+9. Docker Compose
+10. Images
+11. Containers
+12. Networks
+13. Volumes
+14. Docker Commands Used
+15. Errors We Faced
+16. Root Cause Analysis
+17. Interview Questions
+18. Summary
+
+---
+
+# 1. Why Did We Use Docker?
+
+Before Docker, imagine deploying our application.
+
+We have:
+
+* React Frontend
+* NodeJS Backend
+* PostgreSQL
+
+Without Docker:
+
+```text
+Developer Laptop
+
+↓
+
+Install Node
+
+↓
+
+Install PostgreSQL
+
+↓
+
+Install Nginx
+
+↓
+
+Install npm
+
+↓
+
+Configure everything
+
+↓
+
+Application Starts
+```
+
+Every developer has a different laptop.
+
+Some use Windows.
+
+Some use Ubuntu.
+
+Some use Mac.
+
+Different versions.
+
+Different libraries.
+
+Application behaves differently.
+
+---
+
+# Real Problem
+
+Developer A
+
+```text
+Node 20
+```
+
+Developer B
+
+```text
+Node 18
+```
+
+Developer C
+
+```text
+Node 16
+```
+
+Result
+
+```text
+Works on my machine.
+```
+
+This is one of the biggest software problems.
+
+---
+
+# Docker Solution
+
+Docker packages
+
+* Application
+* Node
+* npm
+* Libraries
+* Dependencies
+
+inside one image.
+
+Now
+
+```text
+Developer
+
+↓
+
+Docker Image
+
+↓
+
+Any Machine
+
+↓
+
+Works Exactly Same
+```
+
+---
+
+# 2. Why Our Project Uses Docker
+
+Jerney contains
+
+```text
+Frontend
+
+Backend
+
+Database
+```
+
+Each should run independently.
+
+Docker helps us isolate them.
+
+---
+
+Without Docker
+
+```text
+Frontend
+
+↓
+
+Needs Node
+
+↓
+
+Backend
+
+↓
+
+Needs Node
+
+↓
+
+Database
+
+↓
+
+Needs PostgreSQL
+```
+
+Everything installed manually.
+
+---
+
+With Docker
+
+```text
+Frontend Container
+
+Backend Container
+
+Database Container
+```
+
+Independent.
+
+---
+
+# 3. Docker Architecture
+
+Docker architecture
+
+```text
+Developer
+
+↓
+
+Docker CLI
+
+↓
+
+Docker Engine
+
+↓
+
+Images
+
+↓
+
+Containers
+```
+
+---
+
+Explanation
+
+Docker CLI
+
+Commands
+
+Example
+
+```bash
+docker build
+```
+
+Docker Engine
+
+Actually creates containers.
+
+---
+
+Image
+
+Blueprint.
+
+---
+
+Container
+
+Running application.
+
+---
+
+# Interview Question
+
+Difference between Image and Container?
+
+Image
+
+Read-only template.
+
+Container
+
+Running instance of image.
+
+---
+
+# 4. Docker in Our Project
+
+We created
+
+Frontend Image
+
+↓
+
+Frontend Container
+
+Backend Image
+
+↓
+
+Backend Container
+
+PostgreSQL Image
+
+↓
+
+Database Container
+
+---
+
+Architecture
+
+```text
+React
+
+↓
+
+Frontend Container
+
+↓
+
+Backend Container
+
+↓
+
+PostgreSQL Container
+```
+
+---
+
+# 5. Our Frontend Dockerfile
+
+This is the exact Dockerfile structure we used.
+
+```dockerfile
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY package*.json .
+
+RUN npm install
+
+COPY .
+
+RUN npm run build
+
+FROM nginx:alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx","-g","daemon off;"]
+```
+
+---
+
+Now understand every line.
+
+---
+
+## Line 1
+
+```dockerfile
+FROM node:20-alpine AS build
+```
+
+Meaning
+
+Create first build stage.
+
+Why Node?
+
+React application needs Node.
+
+Why Version 20?
+
+Stable LTS.
+
+Why Alpine?
+
+Very small image.
+
+Approx
+
+Ubuntu Image
+
+```text
+80-120 MB
+```
+
+Alpine
+
+```text
+5-8 MB
+```
+
+Smaller
+
+↓
+
+Faster download
+
+↓
+
+Less vulnerabilities
+
+↓
+
+Less storage
+
+---
+
+## AS build
+
+Creates stage name.
+
+Later
+
+```dockerfile
+COPY --from=build
+```
+
+will use this stage.
+
+---
+
+## WORKDIR
+
+```dockerfile
+WORKDIR /app
+```
+
+Creates
+
+```text
+/app
+```
+
+Inside container.
+
+Equivalent Linux command
+
+```bash
+mkdir /app
+
+cd /app
+```
+
+---
+
+## COPY package*.json
+
+```dockerfile
+COPY package*.json .
+```
+
+Copies only package.json.
+
+Why?
+
+Because
+
+```dockerfile
+RUN npm install
+```
+
+depends only on package.json.
+
+Docker cache works better.
+
+---
+
+Bad approach
+
+```dockerfile
+COPY .
+
+RUN npm install
+```
+
+Every code change
+
+↓
+
+npm install again
+
+↓
+
+Slow build
+
+---
+
+Good approach
+
+```dockerfile
+COPY package.json
+
+RUN npm install
+
+COPY .
+```
+
+Much faster.
+
+---
+
+## RUN npm install
+
+Downloads
+
+React
+
+Dependencies
+
+Node Modules
+
+Everything.
+
+---
+
+## COPY .
+
+Copies remaining application.
+
+---
+
+## RUN npm run build
+
+React source
+
+↓
+
+Optimized HTML
+
+↓
+
+CSS
+
+↓
+
+JavaScript
+
+↓
+
+dist/
+
+Production build.
+
+---
+
+Second Stage
+
+```dockerfile
+FROM nginx:alpine
+```
+
+Now
+
+Node no longer required.
+
+Only static files.
+
+---
+
+## COPY
+
+```dockerfile
+COPY --from=build /app/dist /usr/share/nginx/html
+```
+
+Copies
+
+Only
+
+Production build.
+
+Not
+
+node_modules
+
+Not
+
+Source Code.
+
+Smaller image.
+
+---
+
+## EXPOSE
+
+```dockerfile
+EXPOSE 80
+```
+
+Container listens
+
+Port
+
+80
+
+---
+
+## CMD
+
+Starts
+
+Nginx.
+
+---
+
+# Multi Stage Build
+
+Diagram
+
+```text
+Stage 1
+
+Node
+
+↓
+
+Build React
+
+↓
+
+dist/
+
+↓
+
+Stage 2
+
+Nginx
+
+↓
+
+Copy dist
+
+↓
+
+Production
+```
+
+---
+
+Why Multi Stage?
+
+Smaller Image.
+
+Safer.
+
+No unnecessary files.
+
+---
+
+# 6. Backend Dockerfile
+
+Our backend Dockerfile
+
+```dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json .
+
+RUN npm install
+
+COPY .
+
+EXPOSE 5000
+
+CMD ["npm","start"]
+```
+
+---
+
+Why no second stage?
+
+Backend actually executes Node.
+
+So Node must remain.
+
+---
+
+# 7. Docker Compose
+
+Docker Compose starts
+
+All containers.
+
+Single command.
+
+```bash
+docker compose up -d
+```
+
+Instead of
+
+```text
+docker run
+
+docker run
+
+docker run
+```
+
+Compose starts everything.
+
+---
+
+Our Compose Architecture
+
+```text
+Frontend
+
+↓
+
+Backend
+
+↓
+
+PostgreSQL
+```
+
+---
+
+# docker-compose.yml
+
+Contains
+
+```text
+services
+
+frontend
+
+backend
+
+db
+
+volumes
+
+networks
+```
+
+---
+
+# services
+
+Defines
+
+Containers.
+
+---
+
+Example
+
+```yaml
+services:
+
+frontend:
+
+backend:
+
+db:
+```
+
+---
+
+# Network
+
+Compose automatically creates
+
+Private Network.
+
+Communication
+
+```text
+Frontend
+
+↓
+
+Backend
+
+↓
+
+Database
+```
+
+No public communication.
+
+---
+
+# Volume
+
+Database stores
+
+Data.
+
+Without volume
+
+Container deleted
+
+↓
+
+Data lost.
+
+Volume solves this.
+
+---
+
+# 8. Docker Commands We Used
+
+Check version
+
+```bash
+docker version
+```
+
+---
+
+Images
+
+```bash
+docker images
+```
+
+---
+
+Containers
+
+```bash
+docker ps
+```
+
+---
+
+All Containers
+
+```bash
+docker ps -a
+```
+
+---
+
+Build
+
+```bash
+docker build
+```
+
+---
+
+Compose
+
+```bash
+docker compose up -d
+```
+
+---
+
+Stop
+
+```bash
+docker compose down
+```
+
+---
+
+Logs
+
+```bash
+docker logs
+```
+
+---
+
+Shell
+
+```bash
+docker exec -it
+```
+
+---
+
+# 9. Errors We Faced
+
+Now the interesting part.
+
+---
+
+## Error 1
+
+Docker Desktop
+
+Not Running.
+
+Error
+
+```text
+error during connect
+```
+
+Root Cause
+
+Docker Engine stopped.
+
+Solution
+
+Start Docker Desktop.
+
+---
+
+## Error 2
+
+Frontend Build Failed
+
+Remember
+
+We accidentally wrote
+
+```dockerfile
+RUN RUN npm install
+```
+
+Docker output
+
+```text
+/bin/sh
+
+RUN
+
+not found
+```
+
+Root Cause
+
+Typing mistake.
+
+Solution
+
+Removed extra RUN.
+
+---
+
+## Error 3
+
+Backend Port
+
+5000 already in use.
+
+Error
+
+```text
+EADDRINUSE
+```
+
+Root Cause
+
+PM2 already running backend.
+
+Solution
+
+Find process
+
+```bash
+sudo lsof -i :5000
+```
+
+Stop process.
+
+---
+
+## Error 4
+
+Docker Cache
+
+Sometimes
+
+Old build reused.
+
+Solution
+
+```bash
+docker compose build --no-cache
+```
+
+---
+
+# 10. Why Docker Before Kubernetes?
+
+Many beginners ask
+
+Why not directly Kubernetes?
+
+Because
+
+Kubernetes
+
+Runs
+
+Containers.
+
+Without Docker
+
+No container.
+
+Without image
+
+Nothing to deploy.
+
+Flow
+
+```text
+Code
+
+↓
+
+Docker Image
+
+↓
+
+Registry
+
+↓
+
+Kubernetes
+```
+
+---
+
+# Interview Questions
+
+### Why Docker?
+
+To package the application with all dependencies so it runs consistently across environments.
+
+---
+
+### Difference between Image and Container?
+
+Image
+
+Blueprint.
+
+Container
+
+Running instance.
+
+---
+
+### Why Alpine?
+
+Smaller.
+
+Secure.
+
+Fast.
+
+---
+
+### Why Multi-stage Build?
+
+Smaller image.
+
+No unnecessary files.
+
+Production ready.
+
+---
+
+### Why COPY package.json first?
+
+Docker cache optimization.
+
+---
+
+### Why EXPOSE?
+
+Documents the listening port.
+
+---
+
+### Why CMD?
+
+Starts the application when the container launches.
+
+---
+
+# Chapter Summary
+
+In this chapter we learned:
+
+* Why Docker is essential for our Jerney project.
+* How Docker architecture works (CLI → Engine → Image → Container).
+* Why we chose Node 20 Alpine and multi-stage builds.
+* How our frontend and backend Dockerfiles are structured.
+* The role of Docker Compose, networks, and volumes.
+* The exact Docker commands we used.
+* The real issues we encountered (`RUN RUN`, Docker Engine connection error, `EADDRINUSE`, cache problems) and how we resolved them.
+
+---
+
+## 📌 Next Chapter (Very Important)
+
+**Chapter 4 – Docker Compose (Line by Line)**
+
+This chapter will focus entirely on **our `docker-compose.yml`**.
+
+We'll explain:
+
+* Every service
+* Every volume
+* Every network
+* Every environment variable
+* Every port mapping
+* `depends_on`
+* Health checks
+* How frontend talks to backend
+* How backend talks to PostgreSQL
+* Complete startup sequence
+* Real production usage
+* Troubleshooting scenarios
+* Interview questions
+
+> **Note:** Once you upload the complete project, I'll replace the illustrative Dockerfile snippets with the **exact files from your repository**, so the handbook matches your implementation line by line.
